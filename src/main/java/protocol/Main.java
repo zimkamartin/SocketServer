@@ -8,40 +8,58 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
 
 // SOURCE for Server logic: https://www.baeldung.com/java-unix-domain-socket
+// SOURCE for simple message exchange: CHAT GPT
 public class Main {
-    private static Optional<String> readSocketMessage(SocketChannel channel) throws IOException {
+
+    private static String readMessage(SocketChannel channel) throws IOException {
         ByteBuffer buffer = ByteBuffer.allocate(1024);
         int bytesRead = channel.read(buffer);
-        if (bytesRead < 0)
-            return Optional.empty();
+        if (bytesRead < 0) return null;
 
-        byte[] bytes = new byte[bytesRead];
         buffer.flip();
+        byte[] bytes = new byte[bytesRead];
         buffer.get(bytes);
-        String message = new String(bytes);
-        return Optional.of(message);
+        return new String(bytes);
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
-        // Define a path for the socket file.
-        Path socketPath = Path
-                .of(System.getProperty("user.home"))
-                .resolve("socket");
-        // Transform the path into UnixDomainSocketAddress.
+    private static void sendMessage(SocketChannel channel, String message) throws IOException {
+        ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
+        while (buffer.hasRemaining()) {
+            channel.write(buffer);
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+        Path socketPath = Path.of(System.getProperty("user.home")).resolve("socket");
         UnixDomainSocketAddress socketAddress = UnixDomainSocketAddress.of(socketPath);
 
-        // Create a server socket channel with a Unix protocol.
-        ServerSocketChannel serverChannel = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
-        // Bind the server socket channel with the socket address previously created.
-        serverChannel.bind(socketAddress);
-        // Wait for the first client connection.
-        SocketChannel channel = serverChannel.accept();
+        try (ServerSocketChannel serverChannel = ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
+            serverChannel.bind(socketAddress);
 
-        readSocketMessage(channel).ifPresent(message -> System.out.printf("[Client message] %s", message));
-        // Lastly, Do not forget to delete the socket file.
-        Files.deleteIfExists(socketPath);
+            try (SocketChannel channel = serverChannel.accept()) {
+                // 1. Receive from client
+                System.out.println("[Server] Waiting for client message...");
+                String msgFromClient = readMessage(channel);
+                System.out.println("[Client] " + msgFromClient);
+
+                // 2. Respond to client
+                String reply1 = "Hello, I am the server!";
+                sendMessage(channel, reply1);
+                System.out.println("[Server] Sent: " + reply1);
+
+                // 3. Receive another message
+                String msg2 = readMessage(channel);
+                System.out.println("[Client] " + msg2);
+
+                // 4. Final response
+                String reply2 = "Goodbye!";
+                sendMessage(channel, reply2);
+                System.out.println("[Server] Sent: " + reply2);
+            }
+        } finally {
+            Files.deleteIfExists(socketPath); // server owns the socket file
+        }
     }
 }
