@@ -138,7 +138,7 @@ class Ntt {
     Polynomial generateConstantTwoPolynomialNtt() {
         BigInteger[] coeffs = new BigInteger[n];
         Arrays.fill(coeffs, BigInteger.TWO);
-        return new Polynomial(coeffs);
+        return new Polynomial(coeffs, q);
     }
 
     Polynomial add(Polynomial a, Polynomial b) {
@@ -146,7 +146,7 @@ class Ntt {
         for (int i = 0; i < n; i = i + 1) {
             resultingCoeffs[i] = a.getCoeffIndex(i).add(b.getCoeffIndex(i)).mod(q);
         }
-        return new Polynomial(resultingCoeffs);
+        return new Polynomial(resultingCoeffs, q);
     }
 
     Polynomial inverse(Polynomial a) {
@@ -154,7 +154,7 @@ class Ntt {
         for (int i = 0; i < n; i = i + 1) {
             resultingCoeffs[i] = a.getCoeffIndex(i).negate().mod(q);
         }
-        return new Polynomial(resultingCoeffs);
+        return new Polynomial(resultingCoeffs, q);
     }
 
     Polynomial sub(Polynomial a, Polynomial b) {
@@ -162,7 +162,7 @@ class Ntt {
     }
 
     Polynomial convertToNtt(Polynomial inputPoly) {
-        Polynomial polyNtt = new Polynomial(inputPoly.getCoeffs());
+        Polynomial polyNtt = new Polynomial(inputPoly.getCoeffs(), q);
         int zetaIndex = 0;
 
         int numOfLayers = (int) (Math.log(n) / Math.log(2));
@@ -190,11 +190,11 @@ class Ntt {
         for (int i = 0; i < n; i = i + 1) {
             resultingCoeffs[i] = a.getCoeffIndex(i).multiply(b.getCoeffIndex(i)).mod(q);
         }
-        return new Polynomial(resultingCoeffs);
+        return new Polynomial(resultingCoeffs, q);
     }
 
     Polynomial convertFromNtt(Polynomial inputPoly) {
-        Polynomial poly = new Polynomial(inputPoly.getCoeffs());
+        Polynomial poly = new Polynomial(inputPoly.getCoeffs(), q);
         int zetaIndex = zetasInverted.size() - 1;
 
         int numOfLayers = (int) (Math.log(n) / Math.log(2));
