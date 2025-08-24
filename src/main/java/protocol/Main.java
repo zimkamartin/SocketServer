@@ -1,6 +1,7 @@
 package protocol;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.net.StandardProtocolFamily;
 import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
@@ -9,20 +10,23 @@ import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-// SOURCE for Server logic: https://www.baeldung.com/java-unix-domain-socket
-// SOURCE for simple message exchange: CHAT GPT
+/**
+ * This is a demo (and proof-of-concept) of the protocol https://eprint.iacr.org/2017/1196.pdf
+ * <p>
+ * N - polynomial size - must be power of 2 and fit into int data type
+ * Q - defines Z_Q for coefficients in the polynomials - must be prime, must be congruent with 1 modulo 2 * N
+ * ETA - defines Central binomial distribution when generating error polynomials.
+ * SOURCE for Server communication logic: https://www.baeldung.com/java-unix-domain-socket
+ * SOURCE for simple message exchange: CHATGPT
+ * </p>
+ */
 public class Main {
 
-    private static String readMessage(SocketChannel channel) throws IOException {
-        ByteBuffer buffer = ByteBuffer.allocate(1024);
-        int bytesRead = channel.read(buffer);
-        if (bytesRead < 0) return null;
+    private static final int N = 1024;
+    private static final BigInteger Q = BigInteger.valueOf(1073479681);
+    private static final int ETA = 3;
 
-        buffer.flip();
-        byte[] bytes = new byte[bytesRead];
-        buffer.get(bytes);
-        return new String(bytes);
-    }
+    static byte[] publicSeed;
 
     private static void sendMessage(SocketChannel channel, String message) throws IOException {
         ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
@@ -32,6 +36,9 @@ public class Main {
     }
 
     public static void main(String[] args) throws IOException {
+
+        Protocol protocol = new Protocol(N, Q, ETA);
+
         Path socketPath = Path.of(System.getProperty("user.home")).resolve("socket");
         UnixDomainSocketAddress socketAddress = UnixDomainSocketAddress.of(socketPath);
 
@@ -39,10 +46,8 @@ public class Main {
             serverChannel.bind(socketAddress);
 
             try (SocketChannel channel = serverChannel.accept()) {
-                // 1. Receive from client
-                System.out.println("[Server] Waiting for client message...");
-                String msgFromClient = readMessage(channel);
-                System.out.println("[Client] " + msgFromClient);
+
+                protocol.phase0(channel);
 
                 // 2. Respond to client
                 String reply1 = "Hello, I am the server!";
